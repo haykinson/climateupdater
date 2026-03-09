@@ -48,12 +48,6 @@ func main() {
 
 		results := CalculateRecords(data)
 
-		// Omit the first year from the results, because every day is trivially a record.
-		// The historical context usually starts from year 2 (1941) onwards.
-		if len(results) > 0 {
-			results = results[1:]
-		}
-
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(results)
 	})

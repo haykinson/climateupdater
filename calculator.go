@@ -38,7 +38,10 @@ func CalculateRecords(data []YearData) []RecordResult {
 
 	var results []RecordResult
 
-	for _, yd := range data {
+	// The first 9 years (typically 1940-1948) are considered a baseline period.
+	// We want to register their maximums, but NOT include them in the final output
+	// so the UI isn't spammed with early artificially high record years.
+	for yearIndex, yd := range data {
 		year, err := strconv.Atoi(yd.Name)
 		if err != nil {
 			continue // Should've been filtered out, just in case
@@ -85,9 +88,10 @@ func CalculateRecords(data []YearData) []RecordResult {
 			res.FullYearRecords = &countCopy
 		}
 
-		// However, in 1940 (the very first year), every day is a record!
-		// We can keep it or filter it out visually on the frontend. We keep it here.
-		results = append(results, res)
+		// Only append to results if we have passed the initial 9 year baseline period
+		if yearIndex >= 9 {
+			results = append(results, res)
+		}
 	}
 
 	return results

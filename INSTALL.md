@@ -38,12 +38,16 @@ We provided an installation script to handle building the code, creating the use
 
 After the application is running via systemd (on local port 8081), configure Nginx to expose it to the public:
 
-1. Create a new Nginx server block configuration:
+1. Create a new Nginx server block configuration.
+   If your server uses the traditional Debian layout:
    ```bash
    sudo nano /etc/nginx/sites-available/climateupdater
    ```
+   *(If your Nginx installation doesn't have a `sites-available` folder, you can simply create the file at `/etc/nginx/conf.d/climateupdater.conf` instead).*
 
 2. Add the following Nginx configuration (replace `your_domain_or_ip` with your server's IP or domain name):
+   **Note**: This block initially listens on port 80 (HTTP). When you run Certbot later, Certbot will automatically rewrite this file to configure port 443 (HTTPS) and set up redirects.
+
    ```nginx
    server {
        listen 80;
@@ -61,10 +65,11 @@ After the application is running via systemd (on local port 8081), configure Ngi
    }
    ```
 
-3. Enable the site by symlinking it to `sites-enabled`:
+3. If you used `sites-available`, enable the site by symlinking it to `sites-enabled`:
    ```bash
    sudo ln -s /etc/nginx/sites-available/climateupdater /etc/nginx/sites-enabled/
    ```
+   *(If you used `conf.d`, you can skip this step).*
 
 4. Test your Nginx configuration to ensure there are no syntax errors:
    ```bash
@@ -88,9 +93,30 @@ You can monitor and manage the Go backend using standard `systemctl` and `journa
   ```bash
   sudo journalctl -u climateupdater -f
   ```
-- **Restart the Application (e.g., if you update the code):**
+- **Stop the Application:**
   ```bash
-  sudo systemctl restart climateupdater
+  sudo systemctl stop climateupdater
   ```
+
+## 5. Updating the Code
+
+When you make changes to the Go source code or HTML files, you simply need to pull the new code and rerun the install script. The script safely overwrites the old binary and static files and restarts the server automatically!
+
+1. Navigate to your project directory on the server:
+   ```bash
+   cd ~/climateupdater
+   ```
+
+2. Pull the latest code (e.g., via git):
+   ```bash
+   git pull
+   ```
+
+3. Rerun the installation script:
+   ```bash
+   ./install.sh
+   ```
+
+The script will recompile the Go binary, copy the updated files to `/opt/climateupdater`, and run `systemctl restart climateupdater` so your new changes go live instantly.
 
 Your Climate Records Tracker should now be accessible via your server's IP address or domain name!
