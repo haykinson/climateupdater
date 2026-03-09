@@ -13,6 +13,7 @@ The tool will support 6 regions based on the provided endpoints:
 
 ## 2. Definitions and Metrics
 - **Record Temperature Day**: For a given year $Y$ and a specific day of the year $d$ (e.g., Jan 5th), the temperature is considered a "record" if it is strictly greater than the temperature on day $d$ for all recorded years prior to $Y$.
+- **Baseline Period**: The first 9 years of data (typically 1940-1948) are used strictly as a baseline to establish historical maximums. They are excluded from the calculated records to prevent artificially inflating record counts during early years.
 - **Full Year Records**: The total number of record temperature days that occurred over the entire 365/366 days of year $Y$.
 - **Year-To-Date (YTD) Records**: The number of record temperature days that occurred in year $Y$ *up to the current day of the current year*. This allows for an apples-to-apples comparison of the current year (which is incomplete) against past years at the exact same point in time.
 
@@ -43,7 +44,7 @@ The tool will support 6 regions based on the provided endpoints:
 - **Stack**: HTML, TailwindCSS (via CDN for simplicity, or built if preferred), and Vanilla JavaScript.
 - **UI Design**:
   - A clean, modern interface using a dark mode theme and responsive design.
-  - A dropdown/tab selector to switch between the 6 regions.
-  - A primary display emphasizing the **Current Year YTD Records**.
-  - A data table or bar chart comparing the current year's YTD to past years' YTD and Full Year totals.
-  - Focus will be on usability and clear comparison of the data to visually highlight climate trends.
+  - A dynamic, side-by-side masonry grid layout displaying all 6 regions concurrently.
+  - For each region, a primary display emphasizing the **Current Year YTD Records**.
+  - For each region, a data table and top 5 list comparing the current year's YTD to past years' YTD and Full Year totals.
+  - Focus will be on usability and clear comparison of the data to visually highlight climate trends globally.
