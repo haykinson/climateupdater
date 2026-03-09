@@ -11,7 +11,7 @@ echo "Starting installation of $APP_NAME for Ubuntu 24.04..."
 # 1. Check for Go
 if ! command -v go >/dev/null 2>&1; then
     echo "Error: Go compiler is not installed."
-    echo "Please install Go 1.18+ first (e.g., sudo apt install golang-go)"
+    echo "Please install Go 1.22+ first (e.g., sudo apt install golang-go)"
     exit 1
 fi
 

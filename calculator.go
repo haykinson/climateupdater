@@ -32,7 +32,7 @@ func CalculateRecords(data []YearData) []RecordResult {
 	// This stores the highest temperature seen for any given day of the year (0-365)
 	// prior to the *current* year being evaluated.
 	historicalMaximums := make([]float64, 366)
-	for i := range historicalMaximums {
+	for i := range 366 {
 		historicalMaximums[i] = -math.MaxFloat64 // Start impossibly low
 	}
 

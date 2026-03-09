@@ -26,14 +26,14 @@ func main() {
 	// Start background refresher
 	StartDailyWorker(ds)
 
-	// API Handlers
-	http.HandleFunc("/api/regions", func(w http.ResponseWriter, r *http.Request) {
+	// API Handlers (Go 1.22 structured routing)
+	http.HandleFunc("GET /api/regions", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		// Send standard regions array
 		json.NewEncoder(w).Encode(regions)
 	})
 
-	http.HandleFunc("/api/records", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("GET /api/records", func(w http.ResponseWriter, r *http.Request) {
 		regionID := r.URL.Query().Get("region")
 		if regionID == "" {
 			http.Error(w, "Missing region parameter", http.StatusBadRequest)
@@ -60,7 +60,7 @@ func main() {
 
 	// Static Files
 	fs := http.FileServer(http.Dir("./static"))
-	http.Handle("/", fs)
+	http.Handle("GET /", fs)
 
 	port := "8081"
 	log.Printf("Server listening on :%s", port)

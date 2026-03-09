@@ -14,7 +14,7 @@ The deployment involves:
 
 ## 1. Prerequisites
 
-Run the following commands on your Ubuntu 24.04 server to install Go 1.18+ and Nginx:
+Run the following commands on your Ubuntu 24.04 server to install Go 1.22+ and Nginx:
 
 ```bash
 sudo apt update
