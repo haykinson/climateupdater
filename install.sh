@@ -33,6 +33,12 @@ echo "Setting up installation directory at $INSTALL_DIR..."
 sudo mkdir -p $INSTALL_DIR
 sudo mkdir -p $INSTALL_DIR/static
 
+# Stop the service if it's already running so we can overwrite the binary
+if systemctl is-active --quiet $APP_NAME.service; then
+    echo "Stopping existing $APP_NAME service to allow updates..."
+    sudo systemctl stop $APP_NAME.service
+fi
+
 echo "Copying binary and static assets..."
 sudo cp $APP_NAME $INSTALL_DIR/
 sudo cp -r static/* $INSTALL_DIR/static/
