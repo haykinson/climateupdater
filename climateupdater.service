@@ -1,0 +1,17 @@
+[Unit]
+Description=Climate Records Tracker Go Backend
+After=network.target
+
+[Service]
+Type=simple
+User=climateupdater
+Group=climateupdater
+WorkingDirectory=/opt/climateupdater
+ExecStart=/opt/climateupdater/climateupdater
+Restart=always
+RestartSec=5
+# Adjust limit if necessary
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

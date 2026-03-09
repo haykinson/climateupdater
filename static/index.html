@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Records Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'climate-dark': '#0f172a',
+                        'climate-card': '#1e293b',
+                        'climate-accent': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Custom scrollbar for webkit to keep lists looking clean inside cards */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center py-10 px-4 md:px-8 max-w-[1800px] mx-auto">
+
+    <!-- Header -->
+    <header class="text-center space-y-2 mb-10">
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+            Climate <span class="text-climate-accent">Records</span> Tracker
+        </h1>
+        <p class="text-slate-400 text-lg">Comparing daily temperature records across all global regions simultaneously.
+        </p>
+    </header>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="text-center py-20 text-slate-400 w-full">
+        <svg class="animate-spin h-8 w-8 text-climate-accent mx-auto mb-4" xmlns="http://www.w3.org/2000/svg"
+            fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+        <p>Fetching and calculating historical records for all regions...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state"
+        class="hidden w-full max-w-2xl bg-red-900/30 border border-red-500/50 text-red-200 p-4 rounded-xl text-center mb-8">
+        <p id="error-message">An error occurred loading the data.</p>
+    </div>
+
+    <!-- The Grid for All Regions -->
+    <div id="regions-container" class="w-full grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 hidden pb-10">
+        <!-- Dashboard cards are rendered here by JavaScript -->
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+
+</html>
