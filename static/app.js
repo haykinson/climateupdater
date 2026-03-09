@@ -3,6 +3,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorState = document.getElementById('error-state');
     const errorMessage = document.getElementById('error-message');
     const regionsContainer = document.getElementById('regions-container');
+    const lastUpdated = document.getElementById('last-updated');
+
+    // Fetch and display status
+    fetch('/api/status')
+        .then(res => {
+            if (!res.ok) throw new Error("Failed to fetch status");
+            return res.json();
+        })
+        .then(status => {
+            if (status.last_updated && lastUpdated) {
+                const d = new Date(status.last_updated);
+                lastUpdated.textContent = `Last Updated: ${d.toLocaleString()}`;
+                showState(lastUpdated);
+            }
+        })
+        .catch(err => console.error("Status fetch error:", err));
 
     // Fetch Regions first
     fetch('/api/regions')

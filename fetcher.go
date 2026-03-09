@@ -35,8 +35,9 @@ var regions = []Region{
 
 // DataStore holds the latest fetched and parsed data for each region securely.
 type DataStore struct {
-	mu   sync.RWMutex
-	data map[string][]YearData
+	mu          sync.RWMutex
+	data        map[string][]YearData
+	lastUpdated time.Time
 }
 
 // NewDataStore creates a new DataStore.
@@ -51,6 +52,7 @@ func (ds *DataStore) Set(regionID string, data []YearData) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	ds.data[regionID] = data
+	ds.lastUpdated = time.Now()
 }
 
 // Get returns the data for a given region.
@@ -59,6 +61,13 @@ func (ds *DataStore) Get(regionID string) ([]YearData, bool) {
 	defer ds.mu.RUnlock()
 	data, ok := ds.data[regionID]
 	return data, ok
+}
+
+// GetLastUpdated returns the time the data was last updated.
+func (ds *DataStore) GetLastUpdated() time.Time {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+	return ds.lastUpdated
 }
 
 // fetchRegionData fetches and parses the JSON from the given URL.

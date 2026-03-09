@@ -33,6 +33,13 @@ func main() {
 		json.NewEncoder(w).Encode(regions)
 	})
 
+	http.HandleFunc("GET /api/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"last_updated": ds.GetLastUpdated(),
+		})
+	})
+
 	http.HandleFunc("GET /api/records", func(w http.ResponseWriter, r *http.Request) {
 		regionID := r.URL.Query().Get("region")
 		if regionID == "" {
