@@ -48,3 +48,36 @@ The tool will support 6 regions based on the provided endpoints:
   - For each region, a primary display emphasizing the **Current Year YTD Records**.
   - For each region, a data table and top 5 list comparing the current year's YTD to past years' YTD and Full Year totals.
   - Focus will be on usability and clear comparison of the data to visually highlight climate trends globally.
+
+## 6. Trend Visualization
+
+No backend changes are required for this section. All data needed for trend visualization is already present in the `/api/records` response; calculations and rendering are performed entirely in the frontend.
+
+### 6.1 YTD Trend Sparkline
+
+Each region card will include a full-width SVG bar chart placed between the YTD hero number and the Top 5 list.
+
+- **Data**: One vertical bar per year (post-baseline), representing that year's `ytd_records`.
+- **Coloring**: Bars are heat-colored on a per-region scale — the minimum YTD value in the dataset maps to a cool blue (`#3b82f6`) and the maximum maps to a hot red (`#ef4444`), with smooth interpolation in between. This makes high-record years visually pop without needing to read the numbers.
+- **Current year highlight**: The current year's bar is always rendered with a bright white/accent top edge and a subtle glow, so it stands out even if it is not the tallest bar.
+- **Hover tooltip**: Hovering a bar shows a small floating label with the year and YTD count. Implemented with SVG `<title>` elements or a positioned `<div>` updated via `mousemove`.
+- **Dimensions**: Full card width, ~64px tall. Rendered as inline SVG — no external charting library.
+- **Axis**: A faint baseline and a single horizontal reference line at the dataset mean help orient the viewer without cluttering the chart.
+
+### 6.2 Trend Badge
+
+A compact inline badge is displayed directly beneath the large YTD number in each card's hero section.
+
+- **Metric**: Compares the current year's YTD count against the **5-year rolling average** of YTD records for the same YTD cutoff (i.e., the average of the preceding 5 completed years' YTD values).
+- **Display format**: `↑ +42% vs 5yr avg` or `↓ −12% vs 5yr avg`.
+- **Color**: Green (`text-emerald-400`) when below average, red (`text-red-400`) when above. Because more record-temperature days indicates warming, being above average is the alarming signal and should be red.
+- **Fallback**: If fewer than 5 prior years of data exist for a region, the badge is omitted.
+
+### 6.3 Inline Bar in the Historical Table
+
+Each row in the scrollable historical table will include a subtle proportional bar behind the YTD value cell.
+
+- Rendered as a `<div>` with a fixed-width container and a colored inner `<div>` whose width is set as a percentage of the column-maximum YTD value for that region.
+- The bar is a translucent red (`bg-red-500/20`) so the number remains readable in front of it.
+- The current year's bar uses a slightly brighter tint (`bg-red-500/40`) to stay consistent with the existing accent highlighting on that row.
+- This makes the relative magnitude of each year scannable at a glance without leaving the table.
