@@ -12,9 +12,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.json();
         })
         .then(status => {
-            if (status.last_updated && lastUpdated) {
-                const d = new Date(status.last_updated);
-                lastUpdated.textContent = `Last Updated: ${d.toLocaleString()}`;
+            if (!lastUpdated) return;
+            const parts = [];
+            if (status.last_updated) {
+                parts.push(`Last Updated: ${new Date(status.last_updated).toLocaleString()}`);
+            }
+            if (status.data_through) {
+                const d = new Date(status.data_through);
+                parts.push(`Data through: ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`);
+            }
+            if (parts.length > 0) {
+                lastUpdated.textContent = parts.join('  ·  ');
                 showState(lastUpdated);
             }
         })
@@ -29,12 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(regions => {
             // Initiate parallel fetches for every single region
             const fetchPromises = regions.map(r =>
-                fetch(`/api/records?region=${r.id}`)
-                    .then(res => {
+                Promise.all([
+                    fetch(`/api/records?region=${r.id}`).then(res => {
                         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                         return res.json();
-                    })
-                    .then(data => ({ region: r, data }))
+                    }),
+                    fetch(`/api/recent?region=${r.id}`).then(res => {
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                        return res.json();
+                    }),
+                ]).then(([records, recent]) => ({ region: r, data: records, recent }))
             );
 
             return Promise.all(fetchPromises);
@@ -46,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render a card for each successfully fetched region
             results.forEach(result => {
                 if (result.data && result.data.length > 0) {
-                    renderRegionCard(result.region, result.data);
+                    renderRegionCard(result.region, result.data, result.recent);
                 }
             });
         })
@@ -54,6 +66,75 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Fetch error:", err);
             showError("Failed to fetch dataset. The backend may still be caching historical records. Please refresh the page in a few seconds.");
         });
+
+    // Builds the recent activity strip: one square per day for the last N days.
+    // Colors: blue (below avg) → neutral (at avg) → dark red (above avg, non-record) → bright red (record).
+    function buildRecentStrip(recentDays, currentYear) {
+        if (!recentDays || recentDays.length === 0) return '';
+
+        const n = recentDays.length;
+        const vbW = n * 5;
+        const vbH = 20;
+        const gap = 0.6;
+        const squareW = 5 - gap;
+        const cornerR = 1;
+
+        // Normalize deviations against the max absolute deviation in this window.
+        const daysWithAvg = recentDays.filter(d => d.clim_avg > -900);
+        const maxAbsDev = daysWithAvg.length > 0
+            ? Math.max(...daysWithAvg.map(d => Math.abs(d.temp - d.clim_avg)))
+            : 1;
+
+        function squareColor(d) {
+            // Record days: bright vivid red, clearly stronger than any non-record shade.
+            if (d.is_record) return '#ef4444';
+            // No climatological mean available: neutral gray.
+            if (d.clim_avg < -900) return '#334155';
+
+            const dev = d.temp - d.clim_avg;
+            const t = Math.min(1, Math.abs(dev) / maxAbsDev);
+
+            if (dev > 0) {
+                // Neutral gray (#334155) → dark red (#991b1b) for above-average non-record days.
+                // Records (#ef4444) are clearly brighter than the darkest red here.
+                const r = Math.round(51 + (153 - 51) * t);
+                const g = Math.round(65 + (27 - 65) * t);
+                const b = Math.round(85 + (27 - 85) * t);
+                return `rgb(${r},${g},${b})`;
+            } else {
+                // Neutral gray (#334155) → bright blue (#2563eb) for below-average days.
+                const r = Math.round(51 + (37 - 51) * t);
+                const g = Math.round(65 + (99 - 65) * t);
+                const b = Math.round(85 + (235 - 85) * t);
+                return `rgb(${r},${g},${b})`;
+            }
+        }
+
+        function dayLabel(dayIndex) {
+            const date = new Date(currentYear, 0, 1);
+            date.setDate(date.getDate() + dayIndex);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        let rects = '';
+        recentDays.forEach((d, i) => {
+            const x = (i * 5 + gap / 2).toFixed(2);
+            const color = squareColor(d);
+            const devStr = d.clim_avg > -900
+                ? ` (${d.temp > d.clim_avg ? '+' : ''}${(d.temp - d.clim_avg).toFixed(2)}°C vs avg)`
+                : '';
+            const label = `${dayLabel(d.day_index)}${d.is_record ? ' · Record!' : ''} · ${d.temp.toFixed(2)}°C${devStr}`;
+            rects += `<rect x="${x}" y="0" width="${squareW.toFixed(2)}" height="${vbH}" fill="${color}" rx="${cornerR}"><title>${label}</title></rect>`;
+        });
+
+        return `
+            <div class="px-3 pt-3 pb-3 border-b border-slate-700 bg-slate-900/40">
+                <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 font-semibold flex justify-between">
+                    <span>← ${n} days ago</span><span>today →</span>
+                </div>
+                <svg viewBox="0 0 ${vbW} ${vbH}" preserveAspectRatio="none" style="width:100%;height:20px;display:block;">${rects}</svg>
+            </div>`;
+    }
 
     // Builds a full-width SVG bar chart sparkline showing YTD records across all years.
     // Bars are heat-colored blue→red. The current year bar is highlighted white with a glow.
@@ -133,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="mt-2 text-sm font-semibold ${colorClass} tracking-wide">${arrow} ${sign}${pct}% vs 5yr avg</div>`;
     }
 
-    function renderRegionCard(region, data) {
+    function renderRegionCard(region, data, recentDays) {
         const currentYearData = data[data.length - 1];
         const sortedByYtd = [...data].sort((a, b) => b.ytd_records - a.ytd_records).slice(0, 5);
         const sortedRecent = [...data].sort((a, b) => b.year - a.year);
@@ -158,14 +239,17 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        // 3. Sparkline (full-width SVG bar chart across all years)
+        // 3. Recent activity strip (last 90 days)
+        html += buildRecentStrip(recentDays, currentYearData.year);
+
+        // 4. Sparkline (full-width SVG bar chart across all years)
         html += `
             <div class="border-b border-slate-700 bg-slate-900/40 py-2">
                 ${buildSparkline(data, currentYearData.year, region.id)}
             </div>
         `;
 
-        // 4. Top 5 List (YTD)
+        // 5. Top 5 List (YTD)
         html += `
             <div class="p-5 border-b border-slate-700">
                 <h3 class="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider">Historical Top 5 (YTD)</h3>
@@ -182,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         html += `</ul></div>`;
 
-        // 5. Historical Table (Scrollable)
+        // 6. Historical Table (Scrollable)
         html += `
             <div class="flex flex-col bg-slate-800/20">
                 <div class="px-4 py-3 bg-slate-800/90 border-b border-slate-700 flex justify-between text-[11px] font-bold text-slate-400 uppercase tracking-widest">

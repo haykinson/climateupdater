@@ -38,6 +38,7 @@ type DataStore struct {
 	mu          sync.RWMutex
 	data        map[string][]YearData
 	lastUpdated time.Time
+	dataThrough time.Time
 }
 
 // NewDataStore creates a new DataStore.
@@ -47,12 +48,15 @@ func NewDataStore() *DataStore {
 	}
 }
 
-// Set stores the data for a given region.
+// Set stores the data for a given region and updates the dataThrough date.
 func (ds *DataStore) Set(regionID string, data []YearData) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
 	ds.data[regionID] = data
 	ds.lastUpdated = time.Now()
+	if t, ok := latestDataDate(data); ok && (ds.dataThrough.IsZero() || t.After(ds.dataThrough)) {
+		ds.dataThrough = t
+	}
 }
 
 // Get returns the data for a given region.
@@ -70,8 +74,33 @@ func (ds *DataStore) GetLastUpdated() time.Time {
 	return ds.lastUpdated
 }
 
+// GetDataThrough returns the date of the most recent valid data point across all regions.
+func (ds *DataStore) GetDataThrough() time.Time {
+	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+	return ds.dataThrough
+}
+
+// latestDataDate finds the calendar date of the last valid temperature reading in a dataset.
+func latestDataDate(data []YearData) (time.Time, bool) {
+	for i := len(data) - 1; i >= 0; i-- {
+		year, err := strconv.Atoi(data[i].Name)
+		if err != nil {
+			continue // skip clim mean entries
+		}
+		for j := len(data[i].Data) - 1; j >= 0; j-- {
+			if data[i].Data[j] > -900.0 {
+				t := time.Date(year, time.January, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, j)
+				return t, true
+			}
+		}
+	}
+	return time.Time{}, false
+}
+
 // fetchRegionData fetches and parses the JSON from the given URL.
-// It filters out any invalid entries where the 'name' field is not a year (e.g. '1979-2000').
+// All entries are preserved, including climatological means like "1979-2000".
+// Callers that need only year entries filter by strconv.Atoi on the Name field.
 func fetchRegionData(url string) ([]YearData, error) {
 	// Custom HTTP client to add headers if required
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -105,18 +134,11 @@ func fetchRegionData(url string) ([]YearData, error) {
 		return nil, err
 	}
 
-	var filteredData []YearData
+	var parsedEntries []YearData
 	for _, entry := range rawData {
-		// Only include entry if 'name' is a valid year (integer)
-		if _, err := strconv.Atoi(entry.Name); err != nil {
-			continue // Skip averages like '1979-2000'
-		}
-
-		// Parse float64 data, converting nulls to a sentinel value (e.g., -999.0) or simply truncating up to first null
 		parsedData := make([]float64, len(entry.Data))
 		for i, v := range entry.Data {
 			if v == nil {
-				// We can stop here, or fill with NaN. Go json.Unmarshal parses numbers as float64
 				parsedData[i] = -999.0 // Sentinel for bad/null data
 			} else {
 				if f, ok := v.(float64); ok {
@@ -124,13 +146,13 @@ func fetchRegionData(url string) ([]YearData, error) {
 				}
 			}
 		}
-		filteredData = append(filteredData, YearData{
+		parsedEntries = append(parsedEntries, YearData{
 			Name: entry.Name,
 			Data: parsedData,
 		})
 	}
 
-	return filteredData, nil
+	return parsedEntries, nil
 }
 
 // StartDailyWorker starts a background goroutine that fetches data daily.

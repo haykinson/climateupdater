@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -37,7 +38,39 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"last_updated": ds.GetLastUpdated(),
+			"data_through": ds.GetDataThrough(),
 		})
+	})
+
+	http.HandleFunc("GET /api/recent", func(w http.ResponseWriter, r *http.Request) {
+		regionID := r.URL.Query().Get("region")
+		if regionID == "" {
+			http.Error(w, "Missing region parameter", http.StatusBadRequest)
+			return
+		}
+
+		data, ok := ds.Get(regionID)
+		if !ok {
+			http.Error(w, "Region data not found or not yet loaded", http.StatusNotFound)
+			return
+		}
+
+		// Extract the climatological mean (the first non-integer-named entry, e.g. "1979-2000").
+		var climMean []float64
+		for _, yd := range data {
+			if _, err := strconv.Atoi(yd.Name); err != nil {
+				climMean = yd.Data
+				break
+			}
+		}
+
+		results := CalculateRecentDays(data, climMean, 90)
+		if results == nil {
+			results = make([]RecentDayData, 0)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(results)
 	})
 
 	http.HandleFunc("GET /api/records", func(w http.ResponseWriter, r *http.Request) {

@@ -20,8 +20,8 @@ The tool will support 6 regions based on the provided endpoints:
 ## 3. Data Ingestion & Processing (Backend)
 - **Language**: Go (restricted to version 1.18 features only).
 - **Fetching Strategy**: The backend will fetch the JSON data from the 6 URLs once daily and cache it in memory.
-- **Parsing**: 
-  - The JSON array contains objects with a `name` parameter. The backend will filter out non-year entries (like `"1979-2000"` means) by ensuring `name` parses as an integer.
+- **Parsing**:
+  - The JSON array contains objects with a `name` parameter. All entries are preserved in the cache, including climatological mean entries like `"1979-2000"`. Functions that operate only on year data filter by checking whether `name` parses as an integer.
   - Leap years will be accounted for by aligning day indices (0 to 365). Missing data handles (`null` or out-of-bounds) will be ignored.
 - **Calculation Logic**:
   - The system will iterate chronologically from the earliest year (1940) to the most recent.
@@ -39,6 +39,18 @@ The tool will support 6 regions based on the provided endpoints:
       { "year": 2025, "full_year_records": null, "ytd_records": ... }
     ]
     ```
+- `GET /api/status`: Returns server metadata including `last_updated` (time of last data fetch) and `data_through` (the calendar date of the most recent valid temperature reading across all regions).
+- `GET /api/recent?region={region_id}`: Returns per-day temperature data for the last 90 days of the current year. Used to power the recent activity strip.
+  - Response format (array of up to 90 entries):
+    ```json
+    [
+      { "day_index": 72, "temp": 14.23, "clim_avg": 13.51, "is_record": false },
+      { "day_index": 73, "temp": 14.89, "clim_avg": 13.55, "is_record": true }
+    ]
+    ```
+  - `day_index` is the 0-based index within the year (0 = Jan 1).
+  - `clim_avg` is `-999.0` if no climatological mean is available for that day.
+  - `is_record` is `true` if the day's temperature strictly exceeded the historical maximum for that day across all prior years.
 
 ## 5. Client (Frontend)
 - **Stack**: HTML, TailwindCSS (via CDN for simplicity, or built if preferred), and Vanilla JavaScript.
@@ -48,12 +60,26 @@ The tool will support 6 regions based on the provided endpoints:
   - For each region, a primary display emphasizing the **Current Year YTD Records**.
   - For each region, a data table and top 5 list comparing the current year's YTD to past years' YTD and Full Year totals.
   - Focus will be on usability and clear comparison of the data to visually highlight climate trends globally.
+- **Header status line**: Displays both `Last Updated` (fetch time) and `Data through` (date of most recent temperature reading in the dataset).
 
 ## 6. Trend Visualization
 
 No backend changes are required for this section. All data needed for trend visualization is already present in the `/api/records` response; calculations and rendering are performed entirely in the frontend.
 
-### 6.1 YTD Trend Sparkline
+### 6.1 Recent Activity Strip
+
+Each region card includes a row of small squares placed between the YTD hero section and the all-years sparkline. Each square represents one day, covering the last 90 days of the current year (left = oldest, right = most recent).
+
+- **Color encoding** (all based on deviation from the climatological mean for that day):
+  - **Record day**: bright vivid red (`#ef4444`), clearly stronger than any non-record shade.
+  - **Above average (non-record)**: interpolated from neutral gray (`#334155`) toward dark red (`#991b1b`), proportional to the magnitude of the deviation. The maximum non-record red is intentionally darker/more muted than the record color.
+  - **Below average**: interpolated from neutral gray toward bright blue (`#2563eb`), proportional to the magnitude of the deviation.
+  - **At average / no climatological data**: neutral gray (`#334155`).
+- **Normalization**: The deviation scale is normalized per-window — the maximum absolute deviation seen across the 90-day window maps to full saturation. This auto-scales to each region's typical variability.
+- **Tooltip**: Hovering a square shows the date, temperature, deviation from average (with sign), and a "Record!" label if applicable.
+- **Implementation**: Pure inline SVG with `preserveAspectRatio="none"` to fill the card width. The climatological mean is sourced from the `clim_avg` field in `/api/recent`.
+
+### 6.2 YTD Trend Sparkline
 
 Each region card will include a full-width SVG bar chart placed between the YTD hero number and the Top 5 list.
 
@@ -64,7 +90,7 @@ Each region card will include a full-width SVG bar chart placed between the YTD 
 - **Dimensions**: Full card width, ~64px tall. Rendered as inline SVG — no external charting library.
 - **Axis**: A faint baseline and a single horizontal reference line at the dataset mean help orient the viewer without cluttering the chart.
 
-### 6.2 Trend Badge
+### 6.3 Trend Badge
 
 A compact inline badge is displayed directly beneath the large YTD number in each card's hero section.
 
@@ -73,7 +99,7 @@ A compact inline badge is displayed directly beneath the large YTD number in eac
 - **Color**: Green (`text-emerald-400`) when below average, red (`text-red-400`) when above. Because more record-temperature days indicates warming, being above average is the alarming signal and should be red.
 - **Fallback**: If fewer than 5 prior years of data exist for a region, the badge is omitted.
 
-### 6.3 Inline Bar in the Historical Table
+### 6.4 Inline Bar in the Historical Table
 
 Each row in the scrollable historical table will include a subtle proportional bar behind the YTD value cell.
 
