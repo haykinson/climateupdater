@@ -164,9 +164,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const meanY = (padT + plotH - ((mean - minVal) / range) * plotH).toFixed(2);
 
+        const oldestVal = data[0].ytd_records;
+        const currentVal = data[data.length - 1].ytd_records;
+        const isUp = currentVal >= oldestVal;
+        const arrowColor = isUp ? '#ef4444' : '#34d399';
+
+        // Builds a small upward or downward triangle above the center of a bar.
+        function arrowTriangle(barCenterX, barTopY, pointUp) {
+            const cx = barCenterX;
+            const s = 3.5; // half-width of triangle base
+            const h = 4;   // height of triangle
+            const tipY = pointUp ? barTopY - 2 : barTopY - 2 + h;
+            const baseY = pointUp ? barTopY - 2 + h : barTopY - 2;
+            return `<polygon points="${cx},${tipY} ${cx - s},${baseY} ${cx + s},${baseY}" fill="${arrowColor}" opacity="0.9"/>`;
+        }
+
         let rects = '';
+        let arrows = '';
         data.forEach((d, i) => {
             const isCurrent = d.year === currentYear;
+            const isOldest = i === 0;
             const t = (d.ytd_records - minVal) / range;
             const barH = Math.max(1, t * plotH);
             const x = (padL + i * barW + gap / 2).toFixed(2);
@@ -177,8 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isCurrent) {
                 rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#f8fafc" rx="0.5" filter="url(#sparkglow-${regionId})">${title}</rect>`;
+                const cx = padL + i * barW + barW / 2;
+                arrows += arrowTriangle(cx, parseFloat(y), isUp);
             } else {
                 rects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${heatColor(t)}" rx="0.5" opacity="0.85">${title}</rect>`;
+                if (isOldest) {
+                    const cx = padL + i * barW + barW / 2;
+                    arrows += arrowTriangle(cx, parseFloat(y), !isUp);
+                }
             }
         });
 
@@ -192,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <line x1="${padL}" y1="${vbH - padB}" x2="${vbW - padR}" y2="${vbH - padB}" stroke="#334155" stroke-width="0.5"/>
             <line x1="${padL}" y1="${meanY}" x2="${vbW - padR}" y2="${meanY}" stroke="#475569" stroke-width="0.4" stroke-dasharray="3,3"/>
             ${rects}
+            ${arrows}
         </svg>`;
     }
 
